@@ -22,26 +22,27 @@
 // start send start at TXB0SIDH register (all packet info)
 #define MCP2515_LOAD_TXB0SIDH 0b01000000 
 // start send start at TXB0D0 register (only data packet info)
-#define MCP2515_LOAD_TXB0SIDH 0b01000001 
+#define MCP2515_LOAD_TXB0D0 0b01000001 
 // start send start at TXB1SIDH register (all packet info)
 #define MCP2515_LOAD_TXB1SIDH 0b01000010 
 // start send start at TXB1D0 register (only data packet info)
-#define MCP2515_LOAD_TXB1SIDH 0b01000011 
+#define MCP2515_LOAD_TXB1D0 0b01000011 
 // start send start at TXB2SIDH register (all packet info)
 #define MCP2515_LOAD_TXB2SIDH 0b01000100 
 // start send start at TXB2D0 register (only data packet info)
-#define MCP2515_LOAD_TXB2SIDH 0b01000101 
+#define MCP2515_LOAD_TXB2D0 0b01000101 
 
 // start read start at RXB0SIDH register (all packet info)
 #define MCP2515_READ_RXB0SIDH 0b10010000 
 // start send start at RXB0D0 register (only data packet info)
-#define MCP2515_LOAD_RXB0D0 0b10010010
+#define MCP2515_LOAD_RXB0D0 0b10010001
 // start read start at RXB1SIDH register (all packet info)
 #define MCP2515_READ_RXB1SIDH 0b10010010 
 // start send start at RXB1D0 register (only data packet info)
 #define MCP2515_LOAD_RXB1D0 0b10010011
 
 #include "stm32f4xx_hal.h"
+#include "stdbool.h"
 
 typedef enum {
     RXB0,
