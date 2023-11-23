@@ -44,19 +44,6 @@
 // start send start at RXB1D0 register (only data packet info)
 #define MCP2515_LOAD_RXB1D0 0b10010011
 
-typedef enum
-{
-    RXB0,
-    RXB1
-} RXBn;
-
-typedef enum
-{
-    TXB0,
-    TXB1,
-    TXB2
-} TXBn;
-
 typedef struct
 {
     uint8_t TXRXBnSIDH;
@@ -68,5 +55,11 @@ typedef struct
 } tx_rx_reg_packet_t;
 
 void mcp2515_init();
+
+void mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool load_only_data);
+void mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool read_only_data);
+
+void mcp2515_get_read_status(uint8_t *status);
+void mcp2515_get_rx_status(uint8_t *status);
 
 #endif // MCP2515_H_

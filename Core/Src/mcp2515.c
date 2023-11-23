@@ -25,7 +25,7 @@ void mcp2515_read_byte(uint8_t address, uint8_t *data)
     mcp2515_ss_high();
 }
 
-void mcp2515_read_rx_buffer(RXBn buffer_number, uint8_t *data, uint8_t length, bool read_only_data)
+void mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool read_only_data)
 {
     uint8_t read_inst;
 
@@ -33,10 +33,10 @@ void mcp2515_read_rx_buffer(RXBn buffer_number, uint8_t *data, uint8_t length, b
 
     switch (buffer_number)
     {
-    case RXB0:
+    case 0:
         read_inst = MCP2515_READ_RXB0SIDH;
         break;
-    case RXB1:
+    case 1:
         read_inst = MCP2515_READ_RXB1SIDH;
         break;
     default:
@@ -55,7 +55,7 @@ void mcp2515_read_rx_buffer(RXBn buffer_number, uint8_t *data, uint8_t length, b
     mcp2515_ss_high();
 }
 
-void mcp2515_write_tx_buffer(TXBn buffer_number, uint8_t *data, uint8_t length, bool load_only_data)
+void mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool load_only_data)
 {
 
     uint8_t load_inst;
@@ -65,15 +65,15 @@ void mcp2515_write_tx_buffer(TXBn buffer_number, uint8_t *data, uint8_t length, 
 
     switch (buffer_number)
     {
-    case TXB0:
+    case 0:
         load_inst = MCP2515_LOAD_TXB0SIDH;
         rts_inst = MCP2515_RTX_TX0;
         break;
-    case TXB1:
+    case 1:
         load_inst = MCP2515_LOAD_TXB1SIDH;
         rts_inst = MCP2515_RTX_TX1;
         break;
-    case TXB2:
+    case 2:
         load_inst = MCP2515_LOAD_TXB2SIDH;
         rts_inst = MCP2515_RTX_TX2;
         break;
@@ -92,7 +92,7 @@ void mcp2515_write_tx_buffer(TXBn buffer_number, uint8_t *data, uint8_t length, 
     // load data to buffer
     SPI_transmit_buffer(data, length);
 
-    // request to transmit
+    // request to transmit (set TxBnCTRL.TXREQ reg to 1)
     SPI_transmit(rts_inst);
 
     mcp2515_ss_high();
@@ -109,11 +109,21 @@ void mcp2515_write_byte(uint8_t address, uint8_t *data)
     mcp2515_ss_high();
 }
 
-void mcp2515_read_status(uint8_t *status)
+void mcp2515_get_read_status(uint8_t *status)
 {
     mcp2515_ss_low();
 
     SPI_transmit(MCP2515_READ_STATUS);
+    SPI_recieve(status);
+
+    mcp2515_ss_high();
+}
+
+void mcp2515_get_rx_status(uint8_t *status)
+{
+    mcp2515_ss_low();
+
+    SPI_transmit(MCP2515_RX_STATUS);
     SPI_recieve(status);
 
     mcp2515_ss_high();
