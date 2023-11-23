@@ -11,6 +11,8 @@
 #define mcp2515_ss_high() SS_PORT->BSRR = 1 << SS_PIN
 #define mcp2515_ss_low() SS_PORT->BSRR = 1 << (SS_PIN + 16)
 
+#define DATA_MAX_SIZE_IN_BYTES 8
+
 #define MCP2515_READ 0x03
 #define MCP2515_WRITE 0x02
 #define MCP2515_READ_STATUS 0xA0
@@ -44,6 +46,15 @@
 // start send start at RXB1D0 register (only data packet info)
 #define MCP2515_LOAD_RXB1D0 0b10010011
 
+typedef enum
+{
+    OK,
+    INCORRECT_INPUT,
+    TRANSFER_ERROR,
+    NO_FREE_TX_BUF,
+    NO_FULL_RX_BUF
+} process_status_t;
+
 typedef struct
 {
     uint8_t TXRXBnSIDH;
@@ -56,8 +67,8 @@ typedef struct
 
 void mcp2515_init();
 
-void mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool load_only_data);
-void mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool read_only_data);
+process_status_t mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool load_only_data);
+process_status_t mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool read_only_data);
 
 void mcp2515_get_read_status(uint8_t *status);
 void mcp2515_get_rx_status(uint8_t *status);
