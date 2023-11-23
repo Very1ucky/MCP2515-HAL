@@ -13,6 +13,9 @@
 
 #define DATA_MAX_SIZE_IN_BYTES 8
 
+#define MCP2515_CANCTRL_ADDR 0x0F
+#define MCP2515_CANSTAT_ADDR 0x0E
+
 #define MCP2515_READ 0x03
 #define MCP2515_WRITE 0x02
 #define MCP2515_READ_STATUS 0xA0
@@ -52,8 +55,18 @@ typedef enum
     INCORRECT_INPUT,
     TRANSFER_ERROR,
     NO_FREE_TX_BUF,
-    NO_FULL_RX_BUF
+    NO_FULL_RX_BUF,
+    FAILED
 } process_status_t;
+
+typedef enum
+{
+    NORMAL,
+    SLEEP,
+    LOOPBACK,
+    LISTENONLY,
+    CONFIGURATION
+} mcp2515_mode_t;
 
 typedef struct
 {

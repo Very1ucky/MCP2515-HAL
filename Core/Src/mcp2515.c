@@ -145,6 +145,26 @@ void mcp2515_get_rx_status(uint8_t *status)
     mcp2515_ss_high();
 }
 
+process_status_t mcp2515_enter_mode(mcp2515_mode_t mode)
+{
+    mcp2515_write_byte(MCP2515_CANCTRL_ADDR, &mode);
+
+    uint32_t end_time = HAL_GetTick() + 10;
+
+    uint8_t status;
+    while (HAL_GetTick() < end_time)
+    {
+        mcp2515_read_byte(MCP2515_CANSTAT_ADDR, &status);
+
+        if (status>>5 == mode)
+        {
+            return OK;
+        }
+    }
+
+    return FAILED;
+}
+
 void SPI_transmit(uint8_t data)
 {
     HAL_SPI_Transmit(SPI_CAN, &data, 1, 10);
