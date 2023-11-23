@@ -83,7 +83,14 @@ void mcp2515_init();
 process_status_t mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool load_only_data);
 process_status_t mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool read_only_data);
 
+void mcp2515_write_byte(uint8_t address, uint8_t *data);
+void mcp2515_read_byte(uint8_t address, uint8_t *data);
+
 void mcp2515_get_read_status(uint8_t *status);
 void mcp2515_get_rx_status(uint8_t *status);
+
+process_status_t mcp2515_enter_mode(mcp2515_mode_t mode);
+
+
 
 #endif // MCP2515_H_

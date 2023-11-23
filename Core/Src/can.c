@@ -127,7 +127,21 @@ static void conv_regs_2_can_frame(can_frame_t *frame, tx_rx_reg_packet_t *regs, 
     }
 }
 
-void can_init()
+process_status_t can_init()
 {
+    process_status_t status;
+
+    mcp2515_init();
+
+    status = mcp2515_enter_mode(CONFIGURATION);
+    if (status != OK)
+    {
+        return status;
+    }
+
     
+
+    status = mcp2515_enter_mode(NORMAL);
+
+    return status;
 }
