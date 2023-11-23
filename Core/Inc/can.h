@@ -6,7 +6,7 @@
 #define TX_BUF_COUNT 3
 #define RX_BUF_COUNT 2
 
-#define IS_TX_BUF_FREE(__BUF_NUM__, __STATUS__) (1<<(2*(__BUF_NUM__)))&(__STATUS__)==0
+#define IS_TX_BUF_FREE(__BUF_NUM__, __STATUS__) ((1<<(2*(__BUF_NUM__)))&(__STATUS__))==0
 
 #define IS_FRAME_EXTENDED(__FRAME__) __FRAME__->type&0x2
 #define IS_FRAME_RMT(__FRAME__) __FRAME__->type&0x1

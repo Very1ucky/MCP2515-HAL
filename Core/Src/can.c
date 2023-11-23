@@ -129,4 +129,5 @@ static void conv_regs_2_can_frame(can_frame_t *frame, tx_rx_reg_packet_t *regs, 
 
 void can_init()
 {
+    
 }
