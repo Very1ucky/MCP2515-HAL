@@ -18,7 +18,7 @@ process_status_t send_can_frame(can_frame_t *frame)
     }
 
     return mcp2515_write_tx_buffer(free_buf_num, (uint8_t *)&tx_regs,
-                            sizeof(tx_rx_reg_packet_t), false);
+                                   sizeof(tx_rx_reg_packet_t), false);
 }
 
 process_status_t recieve_can_frame(can_frame_t *frame)
@@ -35,7 +35,7 @@ process_status_t recieve_can_frame(can_frame_t *frame)
     }
 
     status = mcp2515_read_rx_buffer(full_buf_num, (uint8_t *)&rx_regs,
-                           sizeof(tx_rx_reg_packet_t), false);
+                                    sizeof(tx_rx_reg_packet_t), false);
 
     conv_regs_2_can_frame(frame, &rx_regs, frame_type);
 
@@ -134,12 +134,32 @@ process_status_t can_init()
     mcp2515_init();
 
     status = mcp2515_enter_mode(CONFIGURATION);
-    if (status != OK)
+    if (status)
     {
         return status;
     }
 
-    
+    /*
+      Tq = 2 * (brp + 1) / 80000000 = 0.5us
+      Tbit = (SYNCSEG=1 + PRSEG + PHSEG1 + PHSEG2)
+      Tbit = 1tq + 5tq + 6tq + 4tq = 16tq
+      16Tq = 4us = 125kbps
+    */
+
+    /* 7-6(SJW)5-0(BRP)
+        0b11 000001 (BRP = 1, SJW = 4 tq)
+    */
+    mcp2515_write_byte(MCP2515_CNF1_ADDR, 0b11000001);
+
+    /* 7(BTLMODE)6(SamplePointConf)5-3(PHSEG1)2-0(PRSEG)
+        0b1 0 110 101 (def PHSEG2 in CNF3, poll once in SP, set PHSEG1 and PRSEG)
+    */
+    mcp2515_write_byte(MCP2515_CNF2_ADDR, 0b10110101);
+
+    /* 7(SOF)6(WAKFIL)2-0(PHSEG2)
+        0b0 0 xxx 100 (wake-up filter forbidden, set PHSEG2)
+    */
+    mcp2515_write_byte(MCP2515_CNF3_ADDR, 0b00000100);
 
     status = mcp2515_enter_mode(NORMAL);
 
