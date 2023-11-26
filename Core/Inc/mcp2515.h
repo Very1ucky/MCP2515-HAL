@@ -2,8 +2,9 @@
 #define MCP2515_H_
 
 #include "stm32f4xx_hal.h"
-#include "stdbool.h"
-#include "stdint.h"
+#include <stdbool.h>
+#include <stdint.h>
+#include  "proc_status.h"
 
 #define SPI_CAN &hspi1
 #define SS_PORT GPIOA
@@ -49,15 +50,7 @@
 // start send start at RXB1D0 register (only data packet info)
 #define MCP2515_LOAD_RXB1D0 0b10010011
 
-typedef enum
-{
-    OK,
-    INCORRECT_INPUT,
-    TRANSFER_ERROR,
-    NO_FREE_TX_BUF,
-    NO_FULL_RX_BUF,
-    FAILED
-} process_status_t;
+
 
 typedef enum
 {
