@@ -9,6 +9,7 @@
 #include "freertos_init.h"
 #include <string.h>
 #include <stdio.h>
+#include "accel_amperka.h"
 
 void freertos_init();
 
