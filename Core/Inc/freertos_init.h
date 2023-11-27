@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "accel_amperka.h"
+#include "can.h"
 
 void freertos_init();
 

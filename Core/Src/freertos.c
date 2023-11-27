@@ -25,10 +25,8 @@
 
 typedef enum Message_type_ptr
 {
-  LED_BLINK_TWICE,
-  ECHO_REQEST,
-  ERROR_MESSAGE,
-  BUTTON_PRESSED
+  SENSOR_DATA,
+
 } Message_type;
 
 typedef struct Message_ptr
@@ -39,12 +37,13 @@ typedef struct Message_ptr
 
 static char tstr[128];
 
-QueueHandle_t qHandle;
+QueueHandle_t qUartHandle;
+QueueHandle_t qCanHandle;
 
 extern UART_HandleTypeDef huart2;
 
 void mesGenTask(void *pvParameters);
-void mesHandleTask(void *pvParameters);
+void acelReadTask(void *pvParameters);
 void infty(void *pvParameters);
 
 void freertos_init()
@@ -53,81 +52,93 @@ void freertos_init()
   TaskHandle_t xHandle1;
   // xTaskCreate(mesGenTask, "Uart tx task", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 2, &xHandle);
   // xTaskCreate(infty, "", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 1, &xHandle);
-  xTaskCreate(mesHandleTask, "Uart rx task", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 1, &xHandle1);
+  xTaskCreate(acelReadTask, "Uart rx task", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 1, &xHandle1);
 
-  qHandle = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
-
-  if (qHandle == NULL)
-  {
-    HAL_UART_Transmit_DMA(&huart2, "Queue cannot be created", 24);
-
-    return;
-  }
+  qUartHandle = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
+  qCanHandle = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
 
   vTaskStartScheduler();
 }
 
-/*
-void infty(void *pvParameters) {
 
-  for (;;) {}
-}
-*/
-
-void mesGenTask(void *pvParameters)
+void mesSendTask(void *pvParameters)
 {
   Message mes;
 
-  int c = 0;
-
-  while (1)
+  while (true)
   {
-#if DEBUG_NEEDED
-    LED_ON();
-#endif
+    xQueueReceive(qUartHandle, &mes, portMAX_DELAY);
 
-    sprintf(mes.data, "Hello\r\n");
-    if (c % 2 == 0)
-      mes.type = ECHO_REQEST;
-    else
-      mes.type = LED_BLINK_TWICE;
+    switch (mes.type)
+    {
+    case SENSOR_DATA:
+      sprintf(mes.data, "Sensor: %s", mes.data);
+      break;
+    default:
+      break;
+    }
 
-    xQueueSend(qHandle, &mes, portMAX_DELAY);
+    HAL_UART_Transmit_DMA(&huart2, mes.data, strlen(mes.data));
 
-    c++;
-
-#if DEBUG_NEEDED
-    LED_OFF();
-#endif
-
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(50));
   }
 
   vTaskDelete(NULL);
 }
 
-void mesHandleTask(void *pvParameters)
+void acelReadTask(void *pvParameters)
 {
   static acel_data_t acel_data;
   static process_status_t status;
+  static Message mes;
 
+  mes.type = SENSOR_DATA;
   while (true)
   {
     status = read_velocity(&acel_data);
     process_status(status, "read velocity");
     if (!status)
     {
-      sprintf(tstr, "X=%d, Y=%d, Z=%d\r\n", acel_data.X, acel_data.Y, acel_data.Z);
-      HAL_UART_Transmit_DMA(&huart2, (uint8_t *)tstr, strlen(tstr));
+      sprintf(mes.data, "(acelerometr)X=%d, Y=%d, Z=%d\r\n", acel_data.X, acel_data.Y, acel_data.Z);
+      xQueueSend(qUartHandle, &mes, portMAX_DELAY);
     }
 
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(200));
   }
 
   vTaskDelete(NULL);
 }
 
+void can_read_task(void *pvParameters)
+{
+
+}
+
+void can_send_task(void *pvParameters)
+{
+  
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  LIS331DLN_calibrate();
+  if (GPIO_Pin == GPIO_PIN_13)
+  {
+    LIS331DLN_calibrate();
+  }
+
+  if (GPIO_Pin == INT_PIN)
+  {
+    uint8_t canintf_status;
+    mcp2515_read_byte(MCP2515_CANINTF_ADDR, &canintf_status, RX_CAN_SLAVE);
+
+    if (canintf_status&0x3)
+    {
+
+    }
+
+    if (canintf_status&0x80)
+    {
+
+    }
+  }
 }
