@@ -94,6 +94,12 @@ process_status_t I2C_read_byte(uint16_t addr, uint8_t *data)
 
 process_status_t I2C_read_buffer(uint16_t addr, uint8_t *data, uint8_t length)
 {
+    // set MSB bit for multi reading
+    if (length > 1)
+    {
+        addr |= 0x80;
+    }
+
     if (HAL_I2C_Mem_Read(&I2C_INT, LIS331DLN_ADDR, addr,
                          1, data, length, 200))
     {
@@ -110,6 +116,12 @@ process_status_t I2C_write_byte(uint16_t addr, uint8_t data)
 
 process_status_t I2C_write_buffer(uint16_t addr, uint8_t *data, uint8_t length)
 {
+    // set MSB bit for multi writing
+    if (length > 1)
+    {
+        addr |= 0x80;
+    }
+
     if (HAL_I2C_Mem_Write(&I2C_INT, LIS331DLN_ADDR, addr,
                           1, data, length, 200))
     {
