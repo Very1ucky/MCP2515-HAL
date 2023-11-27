@@ -2,51 +2,51 @@
 
 static void conv_can_frame_2_regs(can_frame_t *frame, tx_rx_reg_packet_t *regs);
 static void conv_regs_2_can_frame(can_frame_t *frame, tx_rx_reg_packet_t *regs, can_frame_type_t frame_type);
-static uint8_t get_first_free_tx_buf();
-static uint8_t get_rx_full_buf(can_frame_type_t *frame_type);
+static uint8_t get_first_free_tx_buf(can_slaves_t slave);
+static uint8_t get_rx_full_buf(can_frame_type_t *frame_type, can_slaves_t slave);
 
-process_status_t send_can_frame(can_frame_t *frame)
+process_status_t send_can_frame(can_frame_t *frame, can_slaves_t slave)
 {
     static tx_rx_reg_packet_t tx_regs;
 
     conv_can_frame_2_regs(frame, &tx_regs);
 
-    uint8_t free_buf_num = get_first_free_tx_buf();
+    uint8_t free_buf_num = get_first_free_tx_buf(slave);
     if (free_buf_num == 0)
     {
         return NO_FREE_TX_BUF;
     }
 
     return mcp2515_write_tx_buffer(free_buf_num, (uint8_t *)&tx_regs,
-                                   sizeof(tx_rx_reg_packet_t), false);
+                                   sizeof(tx_rx_reg_packet_t), false, slave);
 }
 
-process_status_t recieve_can_frame(can_frame_t *frame)
+process_status_t recieve_can_frame(can_frame_t *frame, can_slaves_t slave)
 {
     static tx_rx_reg_packet_t rx_regs;
 
     process_status_t status;
 
     can_frame_type_t frame_type;
-    uint8_t full_buf_num = get_rx_full_buf(&frame_type);
+    uint8_t full_buf_num = get_rx_full_buf(&frame_type, slave);
     if (full_buf_num == 0)
     {
         return NO_FULL_RX_BUF;
     }
 
     status = mcp2515_read_rx_buffer(full_buf_num, (uint8_t *)&rx_regs,
-                                    sizeof(tx_rx_reg_packet_t), false);
+                                    sizeof(tx_rx_reg_packet_t), false, slave);
 
     conv_regs_2_can_frame(frame, &rx_regs, frame_type);
 
     return status;
 }
 
-static uint8_t get_rx_full_buf(can_frame_type_t *frame_type)
+static uint8_t get_rx_full_buf(can_frame_type_t *frame_type, can_slaves_t slave)
 {
     static uint8_t status;
 
-    mcp2515_get_rx_status(&status);
+    mcp2515_get_rx_status(&status, slave);
 
     *frame_type = (can_frame_type_t)((status >> 3) & 0x3);
 
@@ -59,12 +59,12 @@ static uint8_t get_rx_full_buf(can_frame_type_t *frame_type)
     return 0;
 }
 
-static uint8_t get_first_free_tx_buf()
+static uint8_t get_first_free_tx_buf(can_slaves_t slave)
 {
 
     static uint8_t status;
 
-    mcp2515_get_read_status(&status);
+    mcp2515_get_read_status(&status, slave);
 
     for (int buf_num = 1; buf_num <= TX_BUF_COUNT; ++buf_num)
     {
@@ -127,17 +127,47 @@ static void conv_regs_2_can_frame(can_frame_t *frame, tx_rx_reg_packet_t *regs, 
     }
 }
 
-process_status_t can_init()
+/*void check_interrupt_flag()
+{
+
+    mcp2515_read_byte(MCP2515_CANINTF_ADDR);
+}
+*/
+
+process_status_t can_init(can_slaves_t slave)
 {
     process_status_t status;
 
     mcp2515_init();
 
-    status = mcp2515_enter_mode(CONFIGURATION);
+    HAL_Delay(10);
+
+    mcp2515_reset(slave);
+    
+
+    status = mcp2515_enter_mode(CONFIGURATION, slave);
     if (status)
     {
         return status;
     }
+
+    /* enable rollover messages to RXB1 if RXB0 is full
+        disable all filters and masks to recieve all messages
+    */
+    mcp2515_write_byte(MCP2515_RXB0CTRL, 0b01100100, slave);
+    mcp2515_write_byte(MCP2515_RXB1CTRL, 0b01100000, slave);
+
+    /*
+        setup Tx buffers (equal message priority of all buffers)
+    */
+   mcp2515_write_byte(MCP2515_TXB0CTRL, 0x00, slave);
+   mcp2515_write_byte(MCP2515_TXB1CTRL, 0x00, slave);
+   mcp2515_write_byte(MCP2515_TXB2CTRL, 0x00, slave);
+
+    /*
+        ebable interrupts on full recieve buffer and message error
+    */
+    mcp2515_write_byte(MCP2515_CANINTE_ADDR, 0b10000011, slave);
 
     /*
       Tq = 2 * (brp + 1) / 80000000 = 0.5us
@@ -149,19 +179,19 @@ process_status_t can_init()
     /* 7-6(SJW)5-0(BRP)
         0b11 000001 (BRP = 1, SJW = 4 tq)
     */
-    mcp2515_write_byte(MCP2515_CNF1_ADDR, 0b11000001);
+    mcp2515_write_byte(MCP2515_CNF1_ADDR, 0b11000001, slave);
 
     /* 7(BTLMODE)6(SamplePointConf)5-3(PHSEG1)2-0(PRSEG)
         0b1 0 110 101 (def PHSEG2 in CNF3, poll once in SP, set PHSEG1 and PRSEG)
     */
-    mcp2515_write_byte(MCP2515_CNF2_ADDR, 0b10110101);
+    mcp2515_write_byte(MCP2515_CNF2_ADDR, 0b10110101, slave);
 
     /* 7(SOF)6(WAKFIL)2-0(PHSEG2)
         0b0 0 xxx 100 (wake-up filter forbidden, set PHSEG2)
     */
-    mcp2515_write_byte(MCP2515_CNF3_ADDR, 0b00000100);
+    mcp2515_write_byte(MCP2515_CNF3_ADDR, 0b00000100, slave);
 
-    status = mcp2515_enter_mode(NORMAL);
+    status = mcp2515_enter_mode(NORMAL, slave);
 
     return status;
 }
