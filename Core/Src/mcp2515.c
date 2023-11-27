@@ -183,16 +183,6 @@ void mcp2515_reset(can_slaves_t slave)
 
 process_status_t SPI_write_byte(uint8_t data)
 {
-    HAL_StatusTypeDef status = 0;
-    status = HAL_SPI_Transmit(&SPI_CAN, &data, 1, 10);
-    if (status)
-    {
-        return status;
-    }
-
-    return OK;
-
-
     return SPI_write_buffer(&data, 1);
 }
 
@@ -211,14 +201,7 @@ process_status_t SPI_write_buffer(uint8_t *data, uint8_t buf_len)
 
 process_status_t SPI_read_byte(uint8_t *data)
 {
-    HAL_StatusTypeDef status = 0;
-    status = HAL_SPI_Receive(&SPI_CAN, data, 1, 10);
-    if (status)
-    {
-        return status;
-    }
-
-    return OK;
+    return SPI_read_buffer(data, 1);
 }
 
 process_status_t SPI_read_buffer(uint8_t *data, uint8_t buf_len)

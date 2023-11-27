@@ -105,9 +105,9 @@ int main(void)
   MX_I2C1_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-  
-  process_status(can_init(RX_CAN_SLAVE), 'rx can init');
-  process_status(can_init(TX_CAN_SLAVE), 'tx can init');
+
+  process_status(can_init(RX_CAN_SLAVE), "rx can init");
+  process_status(can_init(TX_CAN_SLAVE), "tx can init");
   process_status(LIS331DLN_turn_on(FiveHz), "init");
   freertos_init();
   
