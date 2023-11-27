@@ -1,41 +1,39 @@
 #include "mcp2515.h"
 
-extern SPI_HandleTypeDef hspi1;
+extern SPI_HandleTypeDef hspi2;
 
-void SPI_transmit(uint8_t data);
-void SPI_recieve(uint8_t *data);
+static void slave_select(can_slaves_t slave);
+static void slave_deselect(can_slaves_t slave);
 
-void SPI_transmit_buffer(uint8_t *data, uint8_t buf_len);
-void SPI_recieve_buffer(uint8_t *data, uint8_t buf_len);
+process_status_t SPI_read_byte(uint8_t *data);
+process_status_t SPI_write_byte(uint8_t data);
 
-void mcp2515_init()
+process_status_t SPI_read_buffer(uint8_t *data, uint8_t buf_len);
+process_status_t SPI_write_buffer(uint8_t *data, uint8_t buf_len);
+
+void mcp2515_read_byte(uint8_t address, uint8_t *data, can_slaves_t slave)
 {
-    mcp2515_ss_high();
+
+    slave_select(slave);
+
+    SPI_write_byte(MCP2515_READ);
+    SPI_write_byte(address);
+
+    SPI_read_byte(data);
+
+    slave_deselect(slave);
 }
 
-void mcp2515_read_byte(uint8_t address, uint8_t *data)
+process_status_t mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool read_only_data, can_slaves_t slave)
 {
-    mcp2515_ss_low();
-
-    SPI_transmit(MCP2515_READ);
-    SPI_transmit(address);
-
-    SPI_recieve(data);
-
-    mcp2515_ss_high();
-}
-
-process_status_t mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool read_only_data)
-{
-    if (length > sizeof(tx_rx_reg_packet_t)
-    || (read_only_data && length > DATA_MAX_SIZE_IN_BYTES))
+    if (length > sizeof(tx_rx_reg_packet_t) || (read_only_data && length > DATA_MAX_SIZE_IN_BYTES))
     {
         return INCORRECT_INPUT;
     }
 
     uint8_t read_inst;
 
-    mcp2515_ss_low();
+    slave_select(slave);
 
     switch (buffer_number)
     {
@@ -54,20 +52,19 @@ process_status_t mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, ui
         read_inst |= 1;
     }
 
-    SPI_transmit(read_inst);
+    SPI_write_byte(read_inst);
 
-    SPI_recieve_buffer(data, length);
+    SPI_read_buffer(data, length);
 
-    mcp2515_ss_high();
+    slave_deselect(slave);
 
     return OK;
 }
 
-process_status_t mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool load_only_data)
+process_status_t mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool load_only_data, can_slaves_t slave)
 {
 
-    if (length > sizeof(tx_rx_reg_packet_t)
-    || (load_only_data && length > DATA_MAX_SIZE_IN_BYTES))
+    if (length > sizeof(tx_rx_reg_packet_t) || (load_only_data && length > DATA_MAX_SIZE_IN_BYTES))
     {
         return INCORRECT_INPUT;
     }
@@ -75,7 +72,7 @@ process_status_t mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, u
     uint8_t load_inst;
     uint8_t rts_inst;
 
-    mcp2515_ss_low();
+    slave_select(slave);
 
     switch (buffer_number)
     {
@@ -101,86 +98,171 @@ process_status_t mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, u
     }
 
     // send instr to start writing data
-    SPI_transmit(load_inst);
+    SPI_write_byte(load_inst);
 
     // load data to buffer
-    SPI_transmit_buffer(data, length);
+    SPI_write_buffer(data, length);
 
     // request to transmit (set TxBnCTRL.TXREQ reg to 1)
-    SPI_transmit(rts_inst);
+    SPI_write_byte(rts_inst);
 
-    mcp2515_ss_high();
+    slave_deselect(slave);
 
     return OK;
 }
 
-void mcp2515_write_byte(uint8_t address, uint8_t *data)
+void mcp2515_write_byte(uint8_t address, uint8_t data, can_slaves_t slave)
 {
-    mcp2515_ss_low();
+    slave_select(slave);
 
-    SPI_transmit(MCP2515_WRITE);
-    SPI_transmit(address);
-    SPI_transmit(*data);
+    SPI_write_byte(MCP2515_WRITE);
+    SPI_write_byte(address);
+    SPI_write_byte(data);
 
-    mcp2515_ss_high();
+    slave_deselect(slave);
 }
 
-void mcp2515_get_read_status(uint8_t *status)
+void mcp2515_get_read_status(uint8_t *status, can_slaves_t slave)
 {
-    mcp2515_ss_low();
+    slave_select(slave);
 
-    SPI_transmit(MCP2515_READ_STATUS);
-    SPI_recieve(status);
+    SPI_write_byte(MCP2515_READ_STATUS);
+    SPI_read_byte(status);
 
-    mcp2515_ss_high();
+    slave_deselect(slave);
 }
 
-void mcp2515_get_rx_status(uint8_t *status)
+void mcp2515_get_rx_status(uint8_t *status, can_slaves_t slave)
 {
-    mcp2515_ss_low();
+    slave_select(slave);
 
-    SPI_transmit(MCP2515_RX_STATUS);
-    SPI_recieve(status);
+    SPI_write_byte(MCP2515_RX_STATUS);
+    SPI_read_byte(status);
 
-    mcp2515_ss_high();
+    slave_deselect(slave);
 }
 
-process_status_t mcp2515_enter_mode(mcp2515_mode_t mode)
+void mcp2515_bit_modify(uint8_t address, uint8_t mask, uint8_t data, can_slaves_t slave)
 {
-    mcp2515_write_byte(MCP2515_CANCTRL_ADDR, &mode);
+    slave_select(slave);
 
-    uint32_t end_time = HAL_GetTick() + 10;
+    SPI_write_byte(MCP2515_BIT_MOD);
+    SPI_write_byte(address);
+    SPI_write_byte(mask);
+    SPI_write_byte(data);
 
-    uint8_t status;
-    while (HAL_GetTick() < end_time)
+    slave_deselect(slave);
+}
+
+process_status_t mcp2515_enter_mode(mcp2515_mode_t mode, can_slaves_t slave)
+{
+    uint8_t status = 1;
+
+    mcp2515_write_byte(MCP2515_CANCTRL_ADDR, (uint8_t)(mode << 5), slave);
+
+    HAL_Delay(1000);
+
+    mcp2515_read_byte(MCP2515_CANSTAT_ADDR, &status, slave);
+
+    if (status >> 5 == mode)
     {
-        mcp2515_read_byte(MCP2515_CANSTAT_ADDR, &status);
-
-        if (status>>5 == mode)
-        {
-            return OK;
-        }
+        return OK;
     }
 
     return FAILED;
 }
 
-void SPI_transmit(uint8_t data)
+void mcp2515_reset(can_slaves_t slave)
 {
-    HAL_SPI_Transmit(SPI_CAN, &data, 1, 10);
+    uint8_t data = MCP2515_RESET;
+    slave_select(slave);
+
+    SPI_write_byte(data);
+    slave_deselect(slave);
 }
 
-void SPI_transmit_buffer(uint8_t *data, uint8_t buf_len)
+process_status_t SPI_write_byte(uint8_t data)
 {
-    HAL_SPI_Transmit(SPI_CAN, data, buf_len, 10);
+    HAL_StatusTypeDef status = 0;
+    status = HAL_SPI_Transmit(&SPI_CAN, &data, 1, 10);
+    if (status)
+    {
+        return status;
+    }
+
+    return OK;
+
+
+    return SPI_write_buffer(&data, 1);
 }
 
-void SPI_recieve(uint8_t *data)
+process_status_t SPI_write_buffer(uint8_t *data, uint8_t buf_len)
 {
-    HAL_SPI_Receive(SPI_CAN, data, 1, 10);
+
+    HAL_StatusTypeDef status = 0;
+    status = HAL_SPI_Transmit(&SPI_CAN, data, buf_len, 10);
+    if (status)
+    {
+        return TRANSFER_ERROR;
+    }
+
+    return OK;
 }
 
-void SPI_recieve_buffer(uint8_t *data, uint8_t buf_len)
+process_status_t SPI_read_byte(uint8_t *data)
 {
-    HAL_SPI_Receive(SPI_CAN, data, buf_len, 10);
+    HAL_StatusTypeDef status = 0;
+    status = HAL_SPI_Receive(&SPI_CAN, data, 1, 10);
+    if (status)
+    {
+        return status;
+    }
+
+    return OK;
+}
+
+process_status_t SPI_read_buffer(uint8_t *data, uint8_t buf_len)
+{
+    if (HAL_SPI_Receive(&SPI_CAN, data, buf_len, 10))
+    {
+        return TRANSFER_ERROR;
+    }
+
+    return OK;
+}
+
+static void slave_select(can_slaves_t slave)
+{
+    switch (slave)
+    {
+    case RX_CAN_SLAVE:
+        CS_RX();
+        break;
+    case TX_CAN_SLAVE:
+        CS_TX();
+        break;
+    default:
+        break;
+    }
+}
+
+static void slave_deselect(can_slaves_t slave)
+{
+    switch (slave)
+    {
+    case RX_CAN_SLAVE:
+        CdS_RX();
+        break;
+    case TX_CAN_SLAVE:
+        CdS_TX();
+        break;
+    default:
+        break;
+    }
+}
+
+void mcp2515_init()
+{
+    slave_deselect(RX_CAN_SLAVE);
+    slave_deselect(TX_CAN_SLAVE);
 }
