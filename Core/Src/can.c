@@ -3,9 +3,13 @@
 static void conv_can_frame_2_regs(can_frame_t *frame, tx_rx_reg_packet_t *regs);
 static void conv_regs_2_can_frame(can_frame_t *frame, tx_rx_reg_packet_t *regs, can_frame_type_t frame_type);
 static uint8_t get_first_free_tx_buf(can_slaves_t slave);
-static uint8_t get_rx_full_buf(can_frame_type_t *frame_type, can_slaves_t slave);
 
-process_status_t send_can_frame(can_frame_t *frame, can_slaves_t slave)
+process_status_t send_can_frame(can_frame_t *frame)
+{
+    return send_can_frame_to_slave(frame, TX_CAN_SLAVE);
+}
+
+process_status_t send_can_frame_to_slave(can_frame_t *frame, can_slaves_t slave)
 {
     static tx_rx_reg_packet_t tx_regs;
 
@@ -21,30 +25,31 @@ process_status_t send_can_frame(can_frame_t *frame, can_slaves_t slave)
                                    sizeof(tx_rx_reg_packet_t), false, slave);
 }
 
-process_status_t recieve_can_frame(can_frame_t *frame, can_slaves_t slave)
+process_status_t recieve_can_frame(can_frame_t *frame)
+{
+    return recieve_can_frame_from_slave(frame, RX_CAN_SLAVE);
+}
+
+process_status_t recieve_can_frame_from_slave(can_frame_t *frame, can_slaves_t slave)
 {
     static tx_rx_reg_packet_t rx_regs;
 
     process_status_t status;
 
-    can_frame_type_t frame_type;
-    uint8_t full_buf_num = get_rx_full_buf(&frame_type, slave);
-    if (full_buf_num == 0)
-    {
-        return NO_FULL_RX_BUF;
-    }
+    uint8_t full_buf_num = 1;
+    can_frame_type_t frame_type = ST_DATA;
 
     status = mcp2515_read_rx_buffer(full_buf_num, (uint8_t *)&rx_regs,
-                                    sizeof(tx_rx_reg_packet_t), false, slave);
+                                        sizeof(tx_rx_reg_packet_t), false, slave);
 
     conv_regs_2_can_frame(frame, &rx_regs, frame_type);
 
     return status;
 }
 
-static uint8_t get_rx_full_buf(can_frame_type_t *frame_type, can_slaves_t slave)
+uint8_t get_rx_full_buf_and_type(can_frame_type_t *frame_type, can_slaves_t slave)
 {
-    static uint8_t status;
+    static uint8_t status = 1;
 
     mcp2515_get_rx_status(&status, slave);
 
@@ -96,7 +101,7 @@ static void conv_can_frame_2_regs(can_frame_t *frame, tx_rx_reg_packet_t *regs)
         regs->TXRXBnEID0 = 0;
     }
 
-    regs->TXRXBnDLC = frame->dlc && 0xF;
+    regs->TXRXBnDLC = frame->dlc & 0xF;
 
     if (IS_FRAME_RMT(frame))
     {
@@ -143,7 +148,8 @@ process_status_t can_init(can_slaves_t slave)
     HAL_Delay(10);
 
     mcp2515_reset(slave);
-    
+
+    HAL_Delay(10);
 
     status = mcp2515_enter_mode(CONFIGURATION, slave);
     if (status)
@@ -160,36 +166,46 @@ process_status_t can_init(can_slaves_t slave)
     /*
         setup Tx buffers (equal message priority of all buffers)
     */
-   mcp2515_write_byte(MCP2515_TXB0CTRL, 0x00, slave);
-   mcp2515_write_byte(MCP2515_TXB1CTRL, 0x00, slave);
-   mcp2515_write_byte(MCP2515_TXB2CTRL, 0x00, slave);
+    mcp2515_write_byte(MCP2515_TXB0CTRL, 0x00, slave);
+    mcp2515_write_byte(MCP2515_TXB1CTRL, 0x00, slave);
+    mcp2515_write_byte(MCP2515_TXB2CTRL, 0x00, slave);
 
     /*
-        ebable interrupts on full recieve buffer and message error
+        enable interrupts on full recieve buffer and message error for rx slave
     */
-    mcp2515_write_byte(MCP2515_CANINTE_ADDR, 0b10000011, slave);
+    if (slave == RX_CAN_SLAVE)
+    {
+        mcp2515_write_byte(MCP2515_CANINTE_ADDR, 0b10000011, slave);
+    }
 
     /*
       Tq = 2 * (brp + 1) / 80000000 = 0.5us
       Tbit = (SYNCSEG=1 + PRSEG + PHSEG1 + PHSEG2)
       Tbit = 1tq + 5tq + 6tq + 4tq = 16tq
       16Tq = 4us = 125kbps
+
+      PRSEG+PHSEG1>=PHSEG2
+      PRSEG+PHSEG1>=Tdelay=1-2Tq
+      PHSEG2>SJW
     */
 
     /* 7-6(SJW)5-0(BRP)
-        0b11 000001 (BRP = 1, SJW = 4 tq)
+        0b00 000001 (BRP = 1, SJW = 1 tq)
     */
-    mcp2515_write_byte(MCP2515_CNF1_ADDR, 0b11000001, slave);
+    mcp2515_write_byte(MCP2515_CNF1_ADDR, 0b00000001, slave);
+    HAL_Delay(100);
 
     /* 7(BTLMODE)6(SamplePointConf)5-3(PHSEG1)2-0(PRSEG)
         0b1 0 110 101 (def PHSEG2 in CNF3, poll once in SP, set PHSEG1 and PRSEG)
     */
     mcp2515_write_byte(MCP2515_CNF2_ADDR, 0b10110101, slave);
+    HAL_Delay(100);
 
     /* 7(SOF)6(WAKFIL)2-0(PHSEG2)
         0b0 0 xxx 100 (wake-up filter forbidden, set PHSEG2)
     */
     mcp2515_write_byte(MCP2515_CNF3_ADDR, 0b00000100, slave);
+    HAL_Delay(100);
 
     status = mcp2515_enter_mode(NORMAL, slave);
 

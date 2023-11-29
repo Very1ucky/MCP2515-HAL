@@ -28,7 +28,10 @@ typedef struct {
 
 process_status_t can_init(can_slaves_t slave);
 
-process_status_t send_can_frame(can_frame_t *frame, can_slaves_t slave);
-process_status_t recieve_can_frame(can_frame_t *frame, can_slaves_t slave);
+process_status_t send_can_frame(can_frame_t *frame);
+process_status_t recieve_can_frame(can_frame_t *frame);
+
+process_status_t send_can_frame_to_slave(can_frame_t *frame, can_slaves_t slave);
+process_status_t recieve_can_frame_from_slave(can_frame_t *frame, can_slaves_t slave);
 
 #endif // CAN_H_
