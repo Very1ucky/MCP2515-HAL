@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include "accel_amperka.h"
 #include "can.h"
+#include "proc_status.h"
 
 void freertos_init();
 
