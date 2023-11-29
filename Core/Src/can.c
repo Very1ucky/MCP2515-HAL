@@ -1,7 +1,7 @@
 #include "can.h"
 
 static void conv_can_frame_2_regs(can_frame_t *frame, tx_rx_reg_packet_t *regs);
-static void conv_regs_2_can_frame(can_frame_t *frame, tx_rx_reg_packet_t *regs, can_frame_type_t frame_type);
+static void conv_regs_2_can_frame(can_frame_t *frame, tx_rx_reg_packet_t *regs);
 static uint8_t get_first_free_tx_buf(can_slaves_t slave);
 
 process_status_t send_can_frame(can_frame_t *frame)
@@ -25,43 +25,23 @@ process_status_t send_can_frame_to_slave(can_frame_t *frame, can_slaves_t slave)
                                    sizeof(tx_rx_reg_packet_t), false, slave);
 }
 
-process_status_t recieve_can_frame(can_frame_t *frame)
+process_status_t recieve_can_frame(can_frame_t *frame, uint8_t full_buf_num)
 {
-    return recieve_can_frame_from_slave(frame, RX_CAN_SLAVE);
+    return recieve_can_frame_from_slave(frame, full_buf_num, RX_CAN_SLAVE);
 }
 
-process_status_t recieve_can_frame_from_slave(can_frame_t *frame, can_slaves_t slave)
+process_status_t recieve_can_frame_from_slave(can_frame_t *frame, uint8_t full_buf_num,  can_slaves_t slave)
 {
     static tx_rx_reg_packet_t rx_regs;
 
     process_status_t status;
 
-    uint8_t full_buf_num = 1;
-    can_frame_type_t frame_type = ST_DATA;
-
     status = mcp2515_read_rx_buffer(full_buf_num, (uint8_t *)&rx_regs,
                                         sizeof(tx_rx_reg_packet_t), false, slave);
 
-    conv_regs_2_can_frame(frame, &rx_regs, frame_type);
+    conv_regs_2_can_frame(frame, &rx_regs);
 
     return status;
-}
-
-uint8_t get_rx_full_buf_and_type(can_frame_type_t *frame_type, can_slaves_t slave)
-{
-    static uint8_t status = 1;
-
-    mcp2515_get_rx_status(&status, slave);
-
-    *frame_type = (can_frame_type_t)((status >> 3) & 0x3);
-
-    for (int buf_num = 1; buf_num <= RX_BUF_COUNT; ++buf_num)
-    {
-        if (READ_BIT(status, buf_num + 1))
-            return buf_num;
-    }
-
-    return 0;
 }
 
 static uint8_t get_first_free_tx_buf(can_slaves_t slave)
@@ -114,10 +94,10 @@ static void conv_can_frame_2_regs(can_frame_t *frame, tx_rx_reg_packet_t *regs)
     }
 }
 
-static void conv_regs_2_can_frame(can_frame_t *frame, tx_rx_reg_packet_t *regs, can_frame_type_t frame_type)
+static void conv_regs_2_can_frame(can_frame_t *frame, tx_rx_reg_packet_t *regs)
 {
     frame->st_id = regs->TXRXBnSIDH << 3 | regs->TXRXBnSIDL >> 5;
-    frame->type = frame_type;
+    frame->type = (regs->TXRXBnSIDL & 0x18) >> 3;
 
     if (IS_FRAME_EXTENDED(frame))
     {

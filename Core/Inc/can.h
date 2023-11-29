@@ -13,8 +13,8 @@
 
 typedef enum {
     ST_DATA = 0x0,
-    ST_RMT,
     EXT_DATA,
+    ST_RMT,
     EXT_RMT
 } can_frame_type_t;
 
@@ -29,9 +29,9 @@ typedef struct {
 process_status_t can_init(can_slaves_t slave);
 
 process_status_t send_can_frame(can_frame_t *frame);
-process_status_t recieve_can_frame(can_frame_t *frame);
+process_status_t recieve_can_frame(can_frame_t *frame, uint8_t full_buf_num);
 
 process_status_t send_can_frame_to_slave(can_frame_t *frame, can_slaves_t slave);
-process_status_t recieve_can_frame_from_slave(can_frame_t *frame, can_slaves_t slave);
+process_status_t recieve_can_frame_from_slave(can_frame_t *frame, uint8_t full_buf_num, can_slaves_t slave);
 
 #endif // CAN_H_
