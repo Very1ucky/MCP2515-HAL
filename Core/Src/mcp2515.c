@@ -11,17 +11,22 @@ process_status_t SPI_write_byte(uint8_t data);
 process_status_t SPI_read_buffer(uint8_t *data, uint8_t buf_len);
 process_status_t SPI_write_buffer(uint8_t *data, uint8_t buf_len);
 
-void mcp2515_read_byte(uint8_t address, uint8_t *data, can_slaves_t slave)
+process_status_t mcp2515_request_to_send(uint8_t rts_inst, can_slaves_t slave);
+
+process_status_t mcp2515_read_byte(uint8_t address, uint8_t *data, can_slaves_t slave)
 {
 
     slave_select(slave);
 
-    SPI_write_byte(MCP2515_READ);
-    SPI_write_byte(address);
-
-    SPI_read_byte(data);
+    if (SPI_write_byte(MCP2515_READ) || SPI_write_byte(address) || SPI_read_byte(data))
+    {
+        slave_deselect(slave);
+        return TRANSFER_ERROR;
+    }
 
     slave_deselect(slave);
+
+    return OK;
 }
 
 process_status_t mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool read_only_data, can_slaves_t slave)
@@ -32,8 +37,6 @@ process_status_t mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, ui
     }
 
     uint8_t read_inst;
-
-    slave_select(slave);
 
     switch (buffer_number)
     {
@@ -52,9 +55,13 @@ process_status_t mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, ui
         read_inst |= 1;
     }
 
-    SPI_write_byte(read_inst);
+    slave_select(slave);
 
-    SPI_read_buffer(data, length);
+    if (SPI_write_byte(read_inst) || SPI_read_buffer(data, length))
+    {
+        slave_deselect(slave);
+        return TRANSFER_ERROR;
+    }
 
     slave_deselect(slave);
 
@@ -71,8 +78,6 @@ process_status_t mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, u
 
     uint8_t load_inst;
     uint8_t rts_inst;
-
-    slave_select(slave);
 
     switch (buffer_number)
     {
@@ -97,70 +102,107 @@ process_status_t mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, u
         load_inst |= 1;
     }
 
+    slave_select(slave);
+
     // send instr to start writing data
-    SPI_write_byte(load_inst);
-
     // load data to buffer
-    SPI_write_buffer(data, length);
+    if (SPI_write_byte(load_inst) || SPI_write_buffer(data, length))
+    {
+        slave_deselect(slave);
+        return TRANSFER_ERROR;
+    }
 
+    slave_deselect(slave);
+    
     // request to transmit (set TxBnCTRL.TXREQ reg to 1)
-    SPI_write_byte(rts_inst);
+    if (mcp2515_request_to_send(rts_inst, slave))
+    {
+        return TRANSFER_ERROR;
+    }
+
+    return OK;
+}
+
+process_status_t mcp2515_write_byte(uint8_t address, uint8_t data, can_slaves_t slave)
+{
+    slave_select(slave);
+
+    if (SPI_write_byte(MCP2515_WRITE) || SPI_write_byte(address) || SPI_write_byte(data))
+    {
+        slave_deselect(slave);
+        return TRANSFER_ERROR;
+    }
 
     slave_deselect(slave);
 
     return OK;
 }
 
-void mcp2515_write_byte(uint8_t address, uint8_t data, can_slaves_t slave)
+process_status_t mcp2515_get_read_status(uint8_t *status, can_slaves_t slave)
 {
     slave_select(slave);
 
-    SPI_write_byte(MCP2515_WRITE);
-    SPI_write_byte(address);
-    SPI_write_byte(data);
+    if (SPI_write_byte(MCP2515_READ_STATUS) || SPI_read_byte(status))
+    {
+        slave_deselect(slave);
+        return TRANSFER_ERROR;
+    }
 
     slave_deselect(slave);
+
+    return OK;
 }
 
-void mcp2515_get_read_status(uint8_t *status, can_slaves_t slave)
+process_status_t mcp2515_get_rx_status(uint8_t *status, can_slaves_t slave)
 {
     slave_select(slave);
 
-    SPI_write_byte(MCP2515_READ_STATUS);
-    SPI_read_byte(status);
+    if (SPI_write_byte(MCP2515_RX_STATUS) || SPI_read_byte(status)) 
+    {
+        slave_deselect(slave);
+        return TRANSFER_ERROR;
+    }
 
     slave_deselect(slave);
+
+    return OK;
 }
 
-void mcp2515_get_rx_status(uint8_t *status, can_slaves_t slave)
+process_status_t mcp2515_bit_modify(uint8_t address, uint8_t mask, uint8_t data, can_slaves_t slave)
 {
     slave_select(slave);
 
-    SPI_write_byte(MCP2515_RX_STATUS);
-    SPI_read_byte(status);
+    if (SPI_write_byte(MCP2515_BIT_MOD) || SPI_write_byte(address) || SPI_write_byte(mask) || SPI_write_byte(data))
+    {
+        slave_deselect(slave);
+        return TRANSFER_ERROR;
+    }
 
     slave_deselect(slave);
+
+    return OK;
 }
 
-void mcp2515_bit_modify(uint8_t address, uint8_t mask, uint8_t data, can_slaves_t slave)
+process_status_t mcp2515_request_to_send(uint8_t rts_inst, can_slaves_t slave)
 {
+    process_status_t status = OK;
+
     slave_select(slave);
 
-    SPI_write_byte(MCP2515_BIT_MOD);
-    SPI_write_byte(address);
-    SPI_write_byte(mask);
-    SPI_write_byte(data);
+    status = SPI_write_byte(rts_inst);
 
     slave_deselect(slave);
+
+    return status;
 }
 
 process_status_t mcp2515_enter_mode(mcp2515_mode_t mode, can_slaves_t slave)
 {
     uint8_t status = 1;
 
-    mcp2515_write_byte(MCP2515_CANCTRL_ADDR, (uint8_t)(mode << 5), slave);
+    mcp2515_write_byte(MCP2515_CANCTRL_ADDR, (uint8_t)(mode << 5)|0x07, slave);
 
-    HAL_Delay(1000);
+    HAL_Delay(10);
 
     mcp2515_read_byte(MCP2515_CANSTAT_ADDR, &status, slave);
 
@@ -172,13 +214,16 @@ process_status_t mcp2515_enter_mode(mcp2515_mode_t mode, can_slaves_t slave)
     return FAILED;
 }
 
-void mcp2515_reset(can_slaves_t slave)
+process_status_t mcp2515_reset(can_slaves_t slave)
 {
-    uint8_t data = MCP2515_RESET;
+    process_status_t status = OK;
     slave_select(slave);
 
-    SPI_write_byte(data);
+    status = SPI_write_byte(MCP2515_RESET);
+
     slave_deselect(slave);
+
+    return status;
 }
 
 process_status_t SPI_write_byte(uint8_t data)
@@ -189,9 +234,7 @@ process_status_t SPI_write_byte(uint8_t data)
 process_status_t SPI_write_buffer(uint8_t *data, uint8_t buf_len)
 {
 
-    HAL_StatusTypeDef status = 0;
-    status = HAL_SPI_Transmit(&SPI_CAN, data, buf_len, 10);
-    if (status)
+    if (HAL_SPI_Transmit(&SPI_CAN, data, buf_len, 10))
     {
         return TRANSFER_ERROR;
     }

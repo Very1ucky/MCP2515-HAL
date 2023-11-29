@@ -23,6 +23,8 @@
 
 #define DATA_MAX_SIZE_IN_BYTES 8
 
+#define MCP2515_ERROR_FLG 0x2D
+
 #define MCP2515_TXB0CTRL 0x30
 #define MCP2515_TXB1CTRL 0x40
 #define MCP2515_TXB2CTRL 0x50
@@ -102,16 +104,18 @@ typedef struct
 process_status_t mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool load_only_data, can_slaves_t slave);
 process_status_t mcp2515_read_rx_buffer(uint8_t buffer_number, uint8_t *data, uint8_t length, bool read_only_data, can_slaves_t slave);
 
-void mcp2515_write_byte(uint8_t address, uint8_t data, can_slaves_t slave);
-void mcp2515_read_byte(uint8_t address, uint8_t *data, can_slaves_t slave);
+process_status_t mcp2515_write_byte(uint8_t address, uint8_t data, can_slaves_t slave);
+process_status_t mcp2515_read_byte(uint8_t address, uint8_t *data, can_slaves_t slave);
 
-void mcp2515_get_read_status(uint8_t *status, can_slaves_t slave);
-void mcp2515_get_rx_status(uint8_t *status, can_slaves_t slave);
+process_status_t mcp2515_get_read_status(uint8_t *status, can_slaves_t slave);
+process_status_t mcp2515_get_rx_status(uint8_t *status, can_slaves_t slave);
 
 process_status_t mcp2515_enter_mode(mcp2515_mode_t mode, can_slaves_t slave);
 
+process_status_t mcp2515_bit_modify(uint8_t address, uint8_t mask, uint8_t data, can_slaves_t slave);
+
 void mcp2515_init();
 
-void mcp2515_reset(can_slaves_t slave);
+process_status_t mcp2515_reset(can_slaves_t slave);
 
 #endif // MCP2515_H_

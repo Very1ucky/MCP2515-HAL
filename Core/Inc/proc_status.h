@@ -15,6 +15,18 @@ typedef enum
     FAILED
 } process_status_t;
 
-void process_status(process_status_t status, char *message);
+typedef enum Message_type
+{
+  CAN_SEND,
+  UART_SEND
+} Message_type_t;
+
+typedef struct Message
+{
+  Message_type_t type;
+  uint8_t data[128];
+} Message_t;
+
+void process_status(process_status_t status, Message_t *message, char *error_mes);
 
 #endif // PROC_STATUS_H_

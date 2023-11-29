@@ -26,6 +26,7 @@
 #include "can.h"
 #include "string.h"
 #include "stdio.h"
+#include "proc_status.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,6 +49,7 @@ I2C_HandleTypeDef hi2c1;
 DMA_HandleTypeDef hdma_i2c1_rx;
 
 SPI_HandleTypeDef hspi2;
+DMA_HandleTypeDef hdma_spi2_tx;
 
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
@@ -105,13 +107,29 @@ int main(void)
   MX_I2C1_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
+  Message_t message;
+  process_status_t status;
+  status = can_init(RX_CAN_SLAVE);
+  process_status(status, &message, "rx can init");
+  if (status)
+  {
+    HAL_UART_Transmit(&huart2, (char *)message.data, strlen((char *)message.data), 100);
+  }
 
-  process_status(can_init(RX_CAN_SLAVE), "rx can init");
-  process_status(can_init(TX_CAN_SLAVE), "tx can init");
-  process_status(LIS331DLN_turn_on(FiveHz), "init");
+  status = can_init(TX_CAN_SLAVE);
+  process_status(status, &message, "tx can init");
+  if (status)
+  {
+    HAL_UART_Transmit(&huart2, (char *)message.data, strlen((char *)message.data), 100);
+  }
+
+  status = LIS331DLN_turn_on(FiveHz);
+  process_status(status, &message, "accelerometr init");
+  if (status)
+  {
+    HAL_UART_Transmit(&huart2, (char *)message.data, strlen((char *)message.data), 100);
+  }
   freertos_init();
-  
-  
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -228,7 +246,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -289,6 +307,9 @@ static void MX_DMA_Init(void)
   /* DMA1_Stream0_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+  /* DMA1_Stream4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
   /* DMA1_Stream6_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
@@ -333,15 +354,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PB3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 

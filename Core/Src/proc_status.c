@@ -2,25 +2,25 @@
 
 extern UART_HandleTypeDef huart2;
 
-static char tstr[128];
-
-void process_status(process_status_t status, char *message)
+void process_status(process_status_t status, Message_t *message, char *error_mes)
 {
+    char *data = (char *)message->data;
+
     switch (status)
     {
     case TRANSFER_ERROR:
-        sprintf(tstr, "Transfer error (%s)\r\n", message);
+        sprintf(data, "Transfer error (%s)\r\n", error_mes);
         break;
     case INCORRECT_INPUT:
-        sprintf(tstr, "Incorrect input error (%s)\r\n", message);
+        sprintf(data, "Incorrect input error (%s)\r\n", error_mes);
         break;
     case NO_FREE_TX_BUF:
     case NO_FULL_RX_BUF:
     case FAILED:
-        sprintf(tstr, "Failed to perform operation (%s)\r\n", message);
+        sprintf(data, "Failed to perform operation (%s)\r\n", error_mes);
     default:
         return;
     }
 
-    HAL_UART_Transmit_DMA(&huart2, tstr, strlen(tstr));
+    message->type = UART_SEND;
 }
