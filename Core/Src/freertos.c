@@ -31,10 +31,10 @@ void freertos_init()
 
   // xTaskCreate(mesGenTask, "Uart tx task", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 2, &xHandle);
   // xTaskCreate(infty, "", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 1, &xHandle);
-  xTaskCreate(gyroReadTask, "Uart rx task", TASK_BUFFER_SIZE_IN_WORDS*4, 0, configMAX_PRIORITIES - 1, &acelReadHandle);
-  xTaskCreate(acelReadTask, "Uart rx task", TASK_BUFFER_SIZE_IN_WORDS*4, 0, configMAX_PRIORITIES - 1, &acelReadHandle);
+  xTaskCreate(gyroReadTask, "Uart rx task", TASK_BUFFER_SIZE_IN_WORDS * 4, 0, configMAX_PRIORITIES - 1, &acelReadHandle);
+  xTaskCreate(acelReadTask, "Uart rx task", TASK_BUFFER_SIZE_IN_WORDS * 4, 0, configMAX_PRIORITIES - 1, &acelReadHandle);
   xTaskCreate(mesSendTask, "Uart tx task", TASK_BUFFER_SIZE_IN_WORDS * 4, 0, configMAX_PRIORITIES - 1, &uartTxHandle);
-  xTaskCreate(canReadTask, "Uart rx task", TASK_BUFFER_SIZE_IN_WORDS*4, 0, configMAX_PRIORITIES - 1, &canRxHandle);
+  xTaskCreate(canReadTask, "Uart rx task", TASK_BUFFER_SIZE_IN_WORDS * 4, 0, configMAX_PRIORITIES - 1, &canRxHandle);
 
   qUartHandle = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
   // qCanHandle = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
@@ -91,7 +91,7 @@ void acelReadTask(void *pvParameters)
 
   while (true)
   {
-    status = read_axes_sensor_data(LIS331DLN_ADDR,&axes_data);
+    status = read_axes_sensor_data(LIS331DLN_ADDR, &axes_data);
     process_status(status, &mes, "read velocity");
     if (!status)
     {
@@ -124,7 +124,7 @@ void gyroReadTask(void *pvParameters)
 
   while (true)
   {
-    status = read_axes_sensor_data(L3G4200D_ADDR,&axes_data);
+    status = read_axes_sensor_data(L3G4200D_ADDR, &axes_data);
     process_status(status, &mes, "read velocity");
     if (!status)
     {
@@ -165,22 +165,21 @@ void canReadTask(void *pvParameters)
       switch (frame.data[6])
       {
       case LIS331DLN_ADDR:
-        float xg = (float)axes_data->X*2/16384;
-        float yg = (float)axes_data->Y*2/16384;
-        float zg = (float)axes_data->Z*2/16384;
+        float xg = (float)axes_data->X * 2 / 16384;
+        float yg = (float)axes_data->Y * 2 / 16384;
+        float zg = (float)axes_data->Z * 2 / 16384;
         sprintf((char *)mes.data, "(accelerometr)X=%.2fg, Y=%.2fg, Z=%.2fg\r\n", xg, yg, zg);
         break;
       case L3G4200D_ADDR:
-        float xdps = (float)axes_data->X*250/16384;
-        float ydps = (float)axes_data->Y*250/16384;
-        float zdps = (float)axes_data->Z*250/16384;
+        float xdps = (float)axes_data->X * 250 / 16384;
+        float ydps = (float)axes_data->Y * 250 / 16384;
+        float zdps = (float)axes_data->Z * 250 / 16384;
         sprintf((char *)mes.data, "(gyroscope)X=%.2fdps, Y=%.2fdps, Z=%.2fdps\r\n", xdps, ydps, zdps);
         break;
-      
+
       default:
         break;
       }
-      
     }
 
     xQueueSend(qUartHandle, &mes, 10);

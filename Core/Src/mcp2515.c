@@ -113,7 +113,7 @@ process_status_t mcp2515_write_tx_buffer(uint8_t buffer_number, uint8_t *data, u
     }
 
     slave_deselect(slave);
-    
+
     // request to transmit (set TxBnCTRL.TXREQ reg to 1)
     if (mcp2515_request_to_send(rts_inst, slave))
     {
@@ -157,7 +157,7 @@ process_status_t mcp2515_get_rx_status(uint8_t *status, can_slaves_t slave)
 {
     slave_select(slave);
 
-    if (SPI_write_byte(MCP2515_RX_STATUS) || SPI_read_byte(status)) 
+    if (SPI_write_byte(MCP2515_RX_STATUS) || SPI_read_byte(status))
     {
         slave_deselect(slave);
         return TRANSFER_ERROR;
@@ -200,7 +200,7 @@ process_status_t mcp2515_enter_mode(mcp2515_mode_t mode, can_slaves_t slave)
 {
     uint8_t status = 1;
 
-    mcp2515_write_byte(MCP2515_CANCTRL_ADDR, (uint8_t)(mode << 5)|0x07, slave);
+    mcp2515_write_byte(MCP2515_CANCTRL_ADDR, (uint8_t)(mode << 5) | 0x07, slave);
 
     HAL_Delay(10);
 

@@ -7,12 +7,12 @@
 
 typedef enum
 {
-    OK,
-    INCORRECT_INPUT,
-    TRANSFER_ERROR,
-    NO_FREE_TX_BUF,
-    NO_FULL_RX_BUF,
-    FAILED
+  OK,
+  INCORRECT_INPUT,
+  TRANSFER_ERROR,
+  NO_FREE_TX_BUF,
+  NO_FULL_RX_BUF,
+  FAILED
 } process_status_t;
 
 typedef enum Message_type

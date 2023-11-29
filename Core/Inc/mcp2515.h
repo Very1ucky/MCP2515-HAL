@@ -6,7 +6,7 @@
 #include "main.h"
 #include "stm32f4xx_hal.h"
 
-#include  "proc_status.h"
+#include "proc_status.h"
 
 #define SPI_CAN hspi2
 #define CS_PORT_RX GPIOA

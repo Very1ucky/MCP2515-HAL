@@ -6,19 +6,21 @@
 #define TX_BUF_COUNT 3
 #define RX_BUF_COUNT 2
 
-#define IS_TX_BUF_FREE(__BUF_NUM__, __STATUS__) ((1<<(2*(__BUF_NUM__)))&(__STATUS__))==0
+#define IS_TX_BUF_FREE(__BUF_NUM__, __STATUS__) ((1 << (2 * (__BUF_NUM__))) & (__STATUS__)) == 0
 
-#define IS_FRAME_EXTENDED(__FRAME__) __FRAME__->type&0x2
-#define IS_FRAME_RMT(__FRAME__) __FRAME__->type&0x1
+#define IS_FRAME_EXTENDED(__FRAME__) __FRAME__->type & 0x2
+#define IS_FRAME_RMT(__FRAME__) __FRAME__->type & 0x1
 
-typedef enum {
+typedef enum
+{
     ST_DATA = 0x0,
     EXT_DATA,
     ST_RMT,
     EXT_RMT
 } can_frame_type_t;
 
-typedef struct {
+typedef struct
+{
     uint16_t st_id;
     uint32_t ext_id;
     can_frame_type_t type;
