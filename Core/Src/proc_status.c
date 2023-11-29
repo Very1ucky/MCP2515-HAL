@@ -24,3 +24,14 @@ void process_status(process_status_t status, Message_t *message, char *error_mes
 
     message->type = UART_SEND;
 }
+
+void process_status_and_transmite(process_status_t status, char *error_mes)
+{
+    Message_t message;
+    process_status(status, &message, error_mes);
+
+    if (status)
+    {
+        HAL_UART_Transmit(&huart2, message.data, strlen((char *)message.data), 100);
+    }
+}

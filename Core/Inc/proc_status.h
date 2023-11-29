@@ -28,5 +28,6 @@ typedef struct Message
 } Message_t;
 
 void process_status(process_status_t status, Message_t *message, char *error_mes);
+void process_status_and_transmite(process_status_t status, char *error_mes);
 
 #endif // PROC_STATUS_H_
