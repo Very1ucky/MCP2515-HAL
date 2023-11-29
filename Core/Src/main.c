@@ -107,28 +107,12 @@ int main(void)
   MX_I2C1_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-  Message_t message;
-  process_status_t status;
-  status = can_init(RX_CAN_SLAVE);
-  process_status(status, &message, "rx can init");
-  if (status)
-  {
-    HAL_UART_Transmit(&huart2, (char *)message.data, strlen((char *)message.data), 100);
-  }
+  process_status_and_transmite(can_init(RX_CAN_SLAVE), "rx can init");
+  process_status_and_transmite(can_init(TX_CAN_SLAVE), "tx can init");
+  
+  process_status_and_transmite(LIS331DLN_init(FiveHz), "accelerometr init");
+  process_status_and_transmite(L3G4200D_init(), "gyroscope init");
 
-  status = can_init(TX_CAN_SLAVE);
-  process_status(status, &message, "tx can init");
-  if (status)
-  {
-    HAL_UART_Transmit(&huart2, (char *)message.data, strlen((char *)message.data), 100);
-  }
-
-  status = LIS331DLN_turn_on(FiveHz);
-  process_status(status, &message, "accelerometr init");
-  if (status)
-  {
-    HAL_UART_Transmit(&huart2, (char *)message.data, strlen((char *)message.data), 100);
-  }
   freertos_init();
   /* USER CODE END 2 */
 
@@ -218,7 +202,7 @@ static void MX_I2C1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN I2C1_Init 2 */
-  //I2C1->CR2 |= I2C_CR2_ITERREN;
+  // I2C1->CR2 |= I2C_CR2_ITERREN;
   /* USER CODE END I2C1_Init 2 */
 
 }
@@ -277,7 +261,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = 256000;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;

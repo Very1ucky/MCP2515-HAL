@@ -13,6 +13,10 @@
 #include "can.h"
 #include "proc_status.h"
 
+#define ACCEL_READ_PERIOD pdMS_TO_TICKS(200)
+#define GYRO_READ_PERIOD pdMS_TO_TICKS(400)
+#define CAN_MAX_WAIT_TIME ACCEL_READ_PERIOD*4
+
 void freertos_init();
 
 #endif // FREERTOS_INIT_H_
