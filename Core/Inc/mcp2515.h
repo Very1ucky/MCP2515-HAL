@@ -85,10 +85,10 @@ typedef enum
 typedef enum
 {
     NORMAL,
-    SLEEP,
-    LOOPBACK,
-    LISTENONLY,
-    CONFIGURATION
+    SLEEP = 0x1 << 5,
+    LOOPBACK = 0x2 << 5,
+    LISTENONLY = 0x3 << 5,
+    CONFIGURATION = 0x4 << 5
 } mcp2515_mode_t;
 
 typedef struct

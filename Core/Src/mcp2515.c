@@ -200,13 +200,13 @@ process_status_t mcp2515_enter_mode(mcp2515_mode_t mode, can_slaves_t slave)
 {
     uint8_t status = 1;
 
-    mcp2515_write_byte(MCP2515_CANCTRL_ADDR, (uint8_t)(mode << 5) | 0x07, slave);
+    mcp2515_bit_modify(MCP2515_CANCTRL_ADDR, 0xE0, (uint8_t)mode, slave);
 
     HAL_Delay(10);
 
     mcp2515_read_byte(MCP2515_CANSTAT_ADDR, &status, slave);
 
-    if (status >> 5 == mode)
+    if ((status & 0xE0) == mode)
     {
         return OK;
     }
