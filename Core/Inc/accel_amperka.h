@@ -27,20 +27,20 @@
 
 // set MSB bit to 1 for multireg reading
 #define OUT_XYZ_START OUT_X_L | 0x80
-/* enable HPF on data
- */
+// enable HPF on data
+
 #define LIS331DLN_CTRL_REG2_DATA 0b10010000
 #define LIS331DLN_CTRL_REG3_DATA 0b00000000
-/* FS = 2g
- */
+// scale = +-2g
 #define LIS331DLN_CTRL_REG4_DATA 0b00000000
 
 #define LIS331DLN_CTRL_REG5_DATA 0b00000000
 
+// enable all axes and sensor
 #define L3G4200D_CTRL_REG1_DATA 0b00001111
 #define L3G4200D_CTRL_REG2_DATA 0b00000000
 #define L3G4200D_CTRL_REG3_DATA 0b00000000
-// enable BDU (scale 250 dps)
+// enable BDU (scale +-250 dps)
 #define L3G4200D_CTRL_REG4_DATA 0b10000000
 #define L3G4200D_CTRL_REG5_DATA 0b00000000
 
