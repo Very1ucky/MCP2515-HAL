@@ -8,8 +8,8 @@
 
 #define IS_TX_BUF_FREE(__BUF_NUM__, __STATUS__) ((1 << (2 * (__BUF_NUM__))) & (__STATUS__)) == 0
 
-#define IS_FRAME_EXTENDED(__FRAME__) __FRAME__->type & 0x2
-#define IS_FRAME_RMT(__FRAME__) __FRAME__->type & 0x1
+#define IS_FRAME_EXTENDED(__FRAME__) __FRAME__->type & 0x1
+#define IS_FRAME_RMT(__FRAME__) __FRAME__->type & 0x2
 
 typedef enum
 {

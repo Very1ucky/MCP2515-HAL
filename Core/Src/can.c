@@ -127,15 +127,15 @@ process_status_t can_init(can_slaves_t slave)
 
     HAL_Delay(10);
 
-    mcp2515_reset(slave);
-
-    HAL_Delay(10);
-
-    status = mcp2515_enter_mode(CONFIGURATION, slave);
+    // reset and set config mode
+    status = mcp2515_reset(slave);
     if (status)
     {
         return status;
     }
+
+    HAL_Delay(10);
+    
 
     /* enable rollover messages to RXB1 if RXB0 is full
         disable all filters and masks to recieve all messages
