@@ -7,14 +7,15 @@
 #include <string.h>
 #include <stdio.h>
 
-#define TASK_BUFFER_SIZE_IN_WORDS configMINIMAL_STACK_SIZE
+#define TASK_BUFFER_SIZE_IN_WORDS configMINIMAL_STACK_SIZE * 4
 #define TASK_BUFFER_SIZE_IN_BYTES configMINIMAL_STACK_SIZE * 4
 
 #define QUEUE_LENGTH 10
 #define QUEUE_ITEM_SIZE sizeof(Message_t)
 
-QueueHandle_t qUartHandle;
+QueueHandle_t qMessageHandle;
 
+TaskHandle_t gyroReadHandle;
 TaskHandle_t acelReadHandle;
 TaskHandle_t uartTxHandle;
 TaskHandle_t canRxHandle;
@@ -22,27 +23,24 @@ TaskHandle_t canRxHandle;
 extern UART_HandleTypeDef huart2;
 
 void acelReadTask(void *pvParameters);
-void mesSendTask(void *pvParameters);
+void mesHandleTask(void *pvParameters);
 void canReadTask(void *pvParameters);
 void gyroReadTask(void *pvParameters);
 
 void freertos_init()
 {
 
-  // xTaskCreate(mesGenTask, "Uart tx task", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 2, &xHandle);
-  // xTaskCreate(infty, "", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 1, &xHandle);
-  xTaskCreate(gyroReadTask, "Uart rx task", TASK_BUFFER_SIZE_IN_WORDS * 4, 0, configMAX_PRIORITIES - 1, &acelReadHandle);
-  xTaskCreate(acelReadTask, "Uart rx task", TASK_BUFFER_SIZE_IN_WORDS * 4, 0, configMAX_PRIORITIES - 1, &acelReadHandle);
-  xTaskCreate(mesSendTask, "Uart tx task", TASK_BUFFER_SIZE_IN_WORDS * 4, 0, configMAX_PRIORITIES - 1, &uartTxHandle);
-  xTaskCreate(canReadTask, "Uart rx task", TASK_BUFFER_SIZE_IN_WORDS * 4, 0, configMAX_PRIORITIES - 1, &canRxHandle);
+  xTaskCreate(gyroReadTask, "Gyroscope sensor read task", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 1, &gyroReadHandle);
+  xTaskCreate(acelReadTask, "Accelerometr data read task", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 1, &acelReadHandle);
+  xTaskCreate(mesHandleTask, "Message handler task", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 1, &uartTxHandle);
+  xTaskCreate(canReadTask, "Can read task", TASK_BUFFER_SIZE_IN_WORDS, 0, configMAX_PRIORITIES - 1, &canRxHandle);
 
-  qUartHandle = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
-  // qCanHandle = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
+  qMessageHandle = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
 
   vTaskStartScheduler();
 }
 
-void mesSendTask(void *pvParameters)
+void mesHandleTask(void *pvParameters)
 {
   Message_t mes;
   Message_t err_mes;
@@ -51,7 +49,7 @@ void mesSendTask(void *pvParameters)
 
   while (true)
   {
-    xQueueReceive(qUartHandle, &mes, portMAX_DELAY);
+    xQueueReceive(qMessageHandle, &mes, portMAX_DELAY);
 
     switch (mes.type)
     {
@@ -85,7 +83,8 @@ void acelReadTask(void *pvParameters)
   static can_frame_t *frame = (void *)mes.data;
 
   frame->type = ST_DATA;
-  frame->st_id = 0x10;
+  frame->st_id = 0x11;
+  frame->ext_id = 0x00;
   frame->dlc = 7;
   frame->data[6] = LIS331DLN_ADDR;
 
@@ -102,7 +101,7 @@ void acelReadTask(void *pvParameters)
       }
     }
 
-    xQueueSend(qUartHandle, &mes, 10);
+    xQueueSend(qMessageHandle, &mes, 10);
 
     vTaskDelay(ACCEL_READ_PERIOD);
   }
@@ -117,8 +116,9 @@ void gyroReadTask(void *pvParameters)
   static Message_t mes;
   static can_frame_t *frame = (void *)mes.data;
 
-  frame->type = ST_DATA;
+  frame->type = EXT_DATA;
   frame->st_id = 0x10;
+  frame->ext_id = 0x01;
   frame->dlc = 7;
   frame->data[6] = L3G4200D_ADDR;
 
@@ -135,7 +135,7 @@ void gyroReadTask(void *pvParameters)
       }
     }
 
-    xQueueSend(qUartHandle, &mes, 10);
+    xQueueSend(qMessageHandle, &mes, 10);
 
     vTaskDelay(GYRO_READ_PERIOD);
   }
@@ -157,7 +157,9 @@ void canReadTask(void *pvParameters)
     {
       uint8_t err_flag = 0;
       mcp2515_read_byte(MCP2515_ERROR_FLG, &err_flag, TX_CAN_SLAVE);
-      sprintf((char *)mes.data, "Can read timeout (err flag - %d)\r\n", err_flag);
+      sprintf((char *)mes.data, "Can read timeout (tx err flag - %d)\r\n", err_flag);
+      // clear rx canintf register to enter interrupt if INT wire was broken 
+      mcp2515_bit_modify(MCP2515_CANINTF_ADDR, 0xFF, 0x00, RX_CAN_SLAVE);
     }
     else
     {
@@ -182,7 +184,7 @@ void canReadTask(void *pvParameters)
       }
     }
 
-    xQueueSend(qUartHandle, &mes, 10);
+    xQueueSend(qMessageHandle, &mes, 10);
 
     vTaskDelay(pdMS_TO_TICKS(0));
   }
@@ -206,14 +208,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     {
       if (canintf_status & 0x01)
       {
+        mcp2515_bit_modify(MCP2515_CANINTF_ADDR, 0x01, 0x00, RX_CAN_SLAVE);
         full_buf_num = 1;
       }
       else
       {
+        mcp2515_bit_modify(MCP2515_CANINTF_ADDR, 0x02, 0x00, RX_CAN_SLAVE);
         full_buf_num = 2;
       }
 
-      mcp2515_bit_modify(MCP2515_CANINTF_ADDR, 0x03, 0x00, RX_CAN_SLAVE);
+      
       vTaskNotifyGiveFromISR(canRxHandle, &xHigherPriorityTaskWoken);
     }
 
@@ -223,7 +227,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
       mes.type = UART_SEND;
       sprintf((char *)mes.data, "Can message error\r\n");
       mcp2515_bit_modify(MCP2515_CANINTF_ADDR, 0x80, 0x00, RX_CAN_SLAVE);
-      xQueueSendFromISR(qUartHandle, &mes, &xHigherPriorityTaskWoken);
+      xQueueSendFromISR(qMessageHandle, &mes, &xHigherPriorityTaskWoken);
     }
 
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
